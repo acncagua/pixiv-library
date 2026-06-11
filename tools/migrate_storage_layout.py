@@ -237,16 +237,21 @@ def apply_plan(conn: sqlite3.Connection, plan: dict) -> None:
 
 
 def print_summary(plan: dict) -> None:
+    missing_media = [item for item in plan["missing"] if item["kind"] != "thumb"]
+    missing_thumbs = [item for item in plan["missing"] if item["kind"] == "thumb"]
     print(f"Rows: {plan['rows']}")
     print(f"Moves: {len(plan['moves'])}")
-    print(f"Missing DB files: {len(plan['missing'])}")
+    print(f"Missing image/sidecar files: {len(missing_media)}")
+    print(f"Missing thumbnails: {len(missing_thumbs)}")
     print(f"Unmanaged files: {len(plan['orphans'])}")
     print(f"Unknown Pixiv user IDs: {len(plan['unknown_users'])}")
     print(f"Collisions: {len(plan['collisions'])}")
     for collision in plan["collisions"][:20]:
         print(f"Collision: {collision['target']}")
-    for item in plan["missing"][:20]:
+    for item in missing_media[:20]:
         print(f"Missing {item['kind']}: image_id={item['image_id']} {item['path']}")
+    for item in missing_thumbs[:20]:
+        print(f"Missing thumb: image_id={item['image_id']} {item['path']}")
 
 
 def main() -> None:
