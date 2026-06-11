@@ -37,6 +37,7 @@ def upsert_work_image(
     file_path: Path,
     page_index: int,
     owner_type: str = "self",
+    source_user_id: str | None = None,
 ) -> int:
     save_user_master(conn, work.user_id, work.user_name)
     return upsert_image(
@@ -52,6 +53,5 @@ def upsert_work_image(
         restrict_level=work.restrict_level,
         tags=work.tags,
         owner_type=owner_type,
-        source_user_id=work.user_id,
+        source_user_id=source_user_id or work.user_id,
     )
-

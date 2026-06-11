@@ -33,7 +33,14 @@ def fetch_work(client: object, work_id: int | str, *, user_id: str, user_name: s
     return work_from_illust(detail.illust, user_id=user_id, user_name=user_name)
 
 
-def save_work_sidecar(work: PixivWork, image_path: Path, page_index: int) -> None:
+def save_work_sidecar(
+    work: PixivWork,
+    image_path: Path,
+    page_index: int,
+    *,
+    owner_type: str = "self",
+    source_user_id: str | None = None,
+) -> None:
     image_path.with_suffix(image_path.suffix + ".json").write_text(
         json.dumps(
             {
@@ -45,8 +52,8 @@ def save_work_sidecar(work: PixivWork, image_path: Path, page_index: int) -> Non
                 "source_url": work.source_url,
                 "posted_at": work.posted_at,
                 "restrict_level": work.restrict_level,
-                "owner_type": "self",
-                "source_user_id": work.user_id,
+                "owner_type": owner_type,
+                "source_user_id": source_user_id or work.user_id,
                 "tags": work.tags,
             },
             ensure_ascii=False,
@@ -56,15 +63,45 @@ def save_work_sidecar(work: PixivWork, image_path: Path, page_index: int) -> Non
     )
 
 
-def download_work_assets(client: object, work: PixivWork) -> list[tuple[Path, WorkImage, bool]]:
+def download_work_asset(
+    client: object,
+    work: PixivWork,
+    image: WorkImage,
+    *,
+    owner_type: str = "self",
+    source_user_id: str | None = None,
+) -> tuple[Path, WorkImage, bool]:
     IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+    target = IMAGE_DIR / image.file_name
+    existed_before = target.exists()
+    if not existed_before:
+        client.download(image.url, path=str(IMAGE_DIR), name=image.file_name)
+    save_work_sidecar(
+        work,
+        target,
+        image.page_index,
+        owner_type=owner_type,
+        source_user_id=source_user_id,
+    )
+    return target, image, existed_before
+
+
+def download_work_assets(
+    client: object,
+    work: PixivWork,
+    *,
+    owner_type: str = "self",
+    source_user_id: str | None = None,
+) -> list[tuple[Path, WorkImage, bool]]:
     results = []
     for image in work.images:
-        target = IMAGE_DIR / image.file_name
-        existed_before = target.exists()
-        if not existed_before:
-            client.download(image.url, path=str(IMAGE_DIR), name=image.file_name)
-        save_work_sidecar(work, target, image.page_index)
-        results.append((target, image, existed_before))
+        results.append(
+            download_work_asset(
+                client,
+                work,
+                image,
+                owner_type=owner_type,
+                source_user_id=source_user_id,
+            )
+        )
     return results
-

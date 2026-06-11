@@ -161,8 +161,6 @@ DBパスは [db_config.py](db_config.py) の `get_db_path()` に集約してい�
 
 DBはSQLiteのWALモードで動作します。実行中は `pixiv_viewer.db-wal` と `pixiv_viewer.db-shm` が作成される場合があります。DBをバックアップする場合は、アプリを停止してから `pixiv_viewer.db` と同名の `*.db-wal` / `*.db-shm` が存在すれば一緒にコピーしてください。
 
-公開用のデータ抽出やサンプルDB作成では、DB内の `public_images` ビューを使用できます。このビューは公開版で扱う自分の作品データだけを返します。
-
 ## Git管理対象外ファイル
 
 次のファイルはローカル実行時に生成・保存されるため、Git管理対象外です。

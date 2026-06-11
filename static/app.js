@@ -1,4 +1,4 @@
-﻿const tagInput = document.querySelector("#tagInput");
+const tagInput = document.querySelector("#tagInput");
 const tagChips = document.querySelector("#tagChips");
 const gallery = document.querySelector("#gallery");
 const viewer = document.querySelector("#viewer");
