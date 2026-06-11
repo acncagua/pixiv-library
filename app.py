@@ -257,17 +257,17 @@ def query_images(
             matched_params = filter_params
         representatives_cte = """
             representatives AS (
-                SELECT
-                    m.work_key,
-                    (
-                        SELECT m2.id
-                        FROM matched m2
-                        WHERE m2.work_key = m.work_key
-                        ORDER BY m2.page_index ASC, m2.id ASC
-                        LIMIT 1
-                    ) AS id
-                FROM matched m
-                GROUP BY m.work_key
+                SELECT id
+                FROM (
+                    SELECT
+                        id,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY work_key
+                            ORDER BY page_index ASC, id ASC
+                        ) AS row_number
+                    FROM matched
+                )
+                WHERE row_number = 1
             )
         """
         search_cte = f"WITH {eligible_cte}, {matched_cte}, {representatives_cte}"
