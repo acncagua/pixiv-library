@@ -12,11 +12,11 @@ sys.path.insert(0, str(ROOT))
 
 from db import connect_db, init_db, save_user_master
 from pixiv_library.client import PixivClient
+from pixiv_library.config import IMAGE_DIR
 from pixiv_library.downloader import download_work_asset, work_from_illust
 from pixiv_library.repository import is_work_downloaded, upsert_work_image
 
 
-IMAGE_DIR = ROOT / "library" / "images"
 DEFAULT_DOWNLOAD_INTERVAL = 0.8
 DEFAULT_PAGE_INTERVAL = 1.2
 

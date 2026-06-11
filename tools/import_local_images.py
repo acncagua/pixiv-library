@@ -12,9 +12,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from db import connect_db, extract_page_index, init_db, save_user_master, upsert_image
+from pixiv_library.config import IMAGE_DIR, path_to_storage
 
 
-IMAGE_DIR = ROOT / "library" / "images"
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 
 
@@ -58,7 +58,7 @@ def add_image(conn: sqlite3.Connection, image_path: Path, metadata: dict) -> Non
         shutil.copy2(image_path, target)
         copy_sidecar(image_path, target)
 
-    relative_path = target.relative_to(ROOT).as_posix()
+    stored_path = path_to_storage(target)
     title = metadata.get("title") or image_path.stem
     tags = [tag.strip() for tag in metadata.get("tags", []) if str(tag).strip()]
     posted_at = metadata.get("posted_at") or metadata.get("create_date")
@@ -75,7 +75,7 @@ def add_image(conn: sqlite3.Connection, image_path: Path, metadata: dict) -> Non
         user_id=user_id,
         user_name=user_name,
         title=title,
-        file_path=relative_path,
+        file_path=stored_path,
         page_index=page_index,
         source_url=metadata.get("source_url"),
         posted_at=posted_at,

@@ -145,13 +145,30 @@ python tools/import_local_images.py library/images
 
 ## データ保存場所
 
-現在のDB保存場所は、プロジェクト直下の `pixiv_viewer.db` です。
+未設定の場合、DBはプロジェクト直下の `pixiv_viewer.db`、画像ファイルとPixiv取得時のJSONメタ情報は `library/images/` に保存されます。
 
-DBパスは [db_config.py](db_config.py) の `get_db_path()` に集約しています。将来的にOneDrive上の保存先や設定ファイルによる切り替えへ対応する場合は、基本的にこのファイルを変更します。
+保存場所は `local_config.json` または環境変数で変更できます。`local_config.json` はGit管理対象外です。設定例は [local_config.example.json](local_config.example.json) を参照してください。
 
-画像ファイルとPixiv取得時のJSONメタ情報は `library/images/` に保存されます。
+```json
+{
+  "db_path": "D:/PixivViewerData/pixiv_viewer.db",
+  "image_dir": "D:/PixivViewerData/images"
+}
+```
 
-一覧表示用のサムネイルは `library/thumbs/` に自動生成されます。サムネイルが存在しない場合は、一覧表示時の初回アクセスで元画像から作成されます。
+相対パスを指定した場合は、プロジェクトフォルダからの相対パスとして扱います。絶対パスを指定した場合は、その場所を直接参照します。
+
+環境変数で指定する場合:
+
+```powershell
+$env:PIXIV_VIEWER_DB_PATH="D:\PixivViewerData\pixiv_viewer.db"
+$env:PIXIV_VIEWER_IMAGE_DIR="D:\PixivViewerData\images"
+.\start_viewer.bat
+```
+
+環境変数は `local_config.json` より優先されます。
+
+一覧表示用のサムネイルは、未設定の場合 `library/thumbs/` に自動生成されます。必要に応じて `thumb_dir` または `PIXIV_VIEWER_THUMB_DIR` で変更できます。サムネイルが存在しない場合は、一覧表示時の初回アクセスで元画像から作成されます。
 
 サムネイルをまとめて再生成する場合:
 

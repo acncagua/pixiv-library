@@ -17,14 +17,12 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from db import DB_PATH, connect_db, init_db
+from pixiv_library.config import IMAGE_DIR, LIBRARY_DIR, THUMB_DIR, resolve_storage_path
 from pixiv_library.thumbnail import ensure_thumbnail
 
 
 ROOT = Path(__file__).resolve().parent
 STATIC_DIR = ROOT / "static"
-LIBRARY_DIR = ROOT / "library"
-IMAGE_DIR = LIBRARY_DIR / "images"
-THUMB_DIR = LIBRARY_DIR / "thumbs"
 
 DOWNLOAD_JOB = {
     "running": False,
@@ -49,7 +47,7 @@ TOKEN_LOCK = threading.Lock()
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run Pixiv管理Viewer.")
+    parser = argparse.ArgumentParser(description="Run Pixiv Viewer.")
     parser.add_argument("--host", default=os.environ.get("HOST", "0.0.0.0"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8765")))
     parser.add_argument(
@@ -752,7 +750,7 @@ class Handler(BaseHTTPRequestHandler):
         if row is None:
             self.send_error(HTTPStatus.NOT_FOUND)
             return
-        target = (ROOT / row[0]).resolve()
+        target = resolve_storage_path(row[0])
         if not target.is_relative_to(IMAGE_DIR.resolve()):
             self.send_error(HTTPStatus.FORBIDDEN)
             return
@@ -767,7 +765,7 @@ class Handler(BaseHTTPRequestHandler):
         if row is None:
             self.send_error(HTTPStatus.NOT_FOUND)
             return
-        source = (ROOT / row[0]).resolve()
+        source = resolve_storage_path(row[0])
         if not source.is_relative_to(IMAGE_DIR.resolve()) or not source.exists():
             self.send_error(HTTPStatus.NOT_FOUND)
             return

@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from db import connect_db, init_db
-from pixiv_library.config import ROOT as APP_ROOT
+from pixiv_library.config import resolve_storage_path
 from pixiv_library.thumbnail import rebuild_thumbnails
 
 
@@ -31,7 +31,7 @@ def main() -> None:
             sql += " LIMIT ?"
             params.append(args.limit)
         rows = conn.execute(sql, params).fetchall()
-    images = [(int(row["id"]), (APP_ROOT / row["file_path"]).resolve()) for row in rows]
+    images = [(int(row["id"]), resolve_storage_path(row["file_path"])) for row in rows]
     count = rebuild_thumbnails(images)
     print(f"Rebuilt {count} thumbnail(s).")
 
