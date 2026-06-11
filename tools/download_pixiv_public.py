@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
-import sqlite3
 import sys
 import time
 from pathlib import Path
@@ -12,9 +10,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from db import connect_db, init_db, save_user_master, upsert_image
+from db import connect_db, init_db, save_user_master
 from pixiv_library.client import PixivClient
-from pixiv_library.repository import is_work_downloaded
+from pixiv_library.downloader import download_work_asset, work_from_illust
+from pixiv_library.repository import is_work_downloaded, upsert_work_image
 
 
 IMAGE_DIR = ROOT / "library" / "images"
@@ -36,40 +35,6 @@ def pixiv_status_code(error: BaseException) -> int | None:
         if str(code) in text:
             return code
     return None
-
-
-def save_record(
-    conn: sqlite3.Connection,
-    *,
-    illust: object,
-    file_path: Path,
-    page_index: int,
-    tags: list[str],
-    user_id: str,
-    user_name: str,
-    owner_type: str,
-    source_user_id: str,
-) -> None:
-    relative_path = file_path.relative_to(ROOT).as_posix()
-    pixiv_id = str(illust.id)
-    posted_at_value = getattr(illust, "create_date", None)
-    posted_at = str(posted_at_value) if posted_at_value is not None else None
-    restrict_level = int(getattr(illust, "x_restrict", 0) or 0)
-    upsert_image(
-        conn,
-        pixiv_id=pixiv_id,
-        user_id=user_id,
-        user_name=user_name,
-        title=illust.title,
-        file_path=relative_path,
-        page_index=page_index,
-        source_url=f"https://www.pixiv.net/artworks/{pixiv_id}",
-        posted_at=posted_at,
-        restrict_level=restrict_level,
-        tags=tags,
-        owner_type=owner_type,
-        source_user_id=source_user_id,
-    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -113,8 +78,6 @@ def main() -> None:
     if user_id == auth_user_id:
         target_label += " (authenticated user)"
     print(target_label)
-    IMAGE_DIR.mkdir(parents=True, exist_ok=True)
-
     with connect_db() as conn:
         init_db(conn)
         save_user_master(conn, user_id, user_name)
@@ -151,11 +114,10 @@ def main() -> None:
                 break
 
             for illust in illusts:
-                pixiv_id = str(illust.id)
+                work = work_from_illust(illust, user_id=user_id, user_name=user_name)
+                pixiv_id = work.pixiv_id
                 restrict_level = int(getattr(illust, "x_restrict", 0) or 0)
-                pages = getattr(illust, "meta_pages", []) or []
-                urls = [page.image_urls.original for page in pages] or [illust.meta_single_page.original_image_url]
-                already_indexed = is_work_downloaded(conn, pixiv_id, user_id, len(urls))
+                already_indexed = is_work_downloaded(conn, pixiv_id, user_id, len(work.images))
 
                 if restrict_level != 0 and not args.include_restricted:
                     print(f"Skipped restricted pixiv_id={pixiv_id}")
@@ -174,71 +136,45 @@ def main() -> None:
                     print(f"Processed {total} image file(s).")
                     return
 
-                tags = [tag.name for tag in illust.tags]
                 work_failed = False
 
-                for index, url in enumerate(urls):
-                    suffix = Path(url.split("?")[0]).suffix or ".jpg"
-                    filename = f"{illust.id}_p{index}{suffix}"
-                    target = IMAGE_DIR / filename
-                    existed_before = target.exists()
-                    if not existed_before:
-                        print(f"Downloading {filename}")
-                        try:
-                            api.download(url, path=str(IMAGE_DIR), name=filename)
-                        except Exception as exc:
-                            status_code = pixiv_status_code(exc)
-                            print(
-                                f"Download failed pixiv_id={pixiv_id} page_index={index}: {exc}"
-                            )
-                            if status_code in {403, 429}:
-                                print(f"Pixiv download stopped with status {status_code}.")
-                                raise SystemExit(1) from exc
-                            failed_downloads += 1
-                            work_failed = True
-                            break
-                        time.sleep(DEFAULT_DOWNLOAD_INTERVAL)
-                    else:
-                        skipped_existing += 1
-                        print(f"Already exists {filename}")
+                for image in work.images:
+                    if not (IMAGE_DIR / image.file_name).exists():
+                        print(f"Downloading {image.file_name}")
+                    try:
+                        target, image, existed_before = download_work_asset(
+                            client,
+                            work,
+                            image,
+                            owner_type=owner_type,
+                            source_user_id=source_user_id,
+                        )
+                    except Exception as exc:
+                        status_code = pixiv_status_code(exc)
+                        print(f"Download failed pixiv_id={pixiv_id} page_index={image.page_index}: {exc}")
+                        if status_code in {403, 429}:
+                            print(f"Pixiv download stopped with status {status_code}.")
+                            raise SystemExit(1) from exc
+                        failed_downloads += 1
+                        work_failed = True
+                        break
 
-                    sidecar = target.with_suffix(target.suffix + ".json")
-                    sidecar.write_text(
-                        json.dumps(
-                            {
-                                "pixiv_id": str(illust.id),
-                                "page_index": index,
-                                "user_id": user_id,
-                                "user_name": user_name,
-                                "title": illust.title,
-                                "source_url": f"https://www.pixiv.net/artworks/{illust.id}",
-                                "posted_at": str(getattr(illust, "create_date", "")) or None,
-                                "restrict_level": int(getattr(illust, "x_restrict", 0) or 0),
-                                "owner_type": owner_type,
-                                "source_user_id": source_user_id,
-                                "tags": tags,
-                            },
-                            ensure_ascii=False,
-                            indent=2,
-                        ),
-                        encoding="utf-8",
-                    )
-                    save_record(
+                    upsert_work_image(
                         conn,
-                        illust=illust,
+                        work=work,
                         file_path=target,
-                        page_index=index,
-                        tags=tags,
-                        user_id=user_id,
-                        user_name=user_name,
+                        page_index=image.page_index,
                         owner_type=owner_type,
                         source_user_id=source_user_id,
                     )
                     conn.commit()
                     if existed_before:
                         refreshed_existing += 1
-                        print(f"Updated metadata {sidecar.name}")
+                        skipped_existing += 1
+                        print(f"Updated metadata {target.with_suffix(target.suffix + '.json').name}")
                     total += 1
+                    if not existed_before:
+                        time.sleep(DEFAULT_DOWNLOAD_INTERVAL)
                 if work_failed:
                     continue
 
