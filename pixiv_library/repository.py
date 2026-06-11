@@ -1,0 +1,57 @@
+from __future__ import annotations
+
+import sqlite3
+from pathlib import Path
+
+from db import connect_db, init_db, save_user_master, upsert_image
+
+from .config import ROOT
+from .models import PixivWork
+
+
+def initialize(conn: sqlite3.Connection | None = None) -> None:
+    init_db(conn)
+
+
+def is_work_downloaded(conn: sqlite3.Connection, work_id: int | str, user_id: str, page_count: int) -> bool:
+    rows = conn.execute(
+        """
+        SELECT page_index, file_path
+        FROM images
+        WHERE pixiv_id = ? AND user_id = ?
+        """,
+        (str(work_id), str(user_id)),
+    ).fetchall()
+    found_pages = set()
+    for page_index, file_path in rows:
+        target = ROOT / str(file_path)
+        if target.exists():
+            found_pages.add(int(page_index or 0))
+    return set(range(page_count)).issubset(found_pages)
+
+
+def upsert_work_image(
+    conn: sqlite3.Connection,
+    *,
+    work: PixivWork,
+    file_path: Path,
+    page_index: int,
+    owner_type: str = "self",
+) -> int:
+    save_user_master(conn, work.user_id, work.user_name)
+    return upsert_image(
+        conn,
+        pixiv_id=work.pixiv_id,
+        user_id=work.user_id,
+        user_name=work.user_name,
+        title=work.title,
+        file_path=file_path.relative_to(ROOT).as_posix(),
+        page_index=page_index,
+        source_url=work.source_url,
+        posted_at=work.posted_at,
+        restrict_level=work.restrict_level,
+        tags=work.tags,
+        owner_type=owner_type,
+        source_user_id=work.user_id,
+    )
+

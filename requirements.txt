@@ -1,0 +1,5 @@
+pixivpy3>=3.7,<4
+playwright>=1.40,<2
+requests>=2.31,<3
+Pillow>=10,<12
+
