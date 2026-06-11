@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import shutil
 import sqlite3
@@ -86,11 +87,17 @@ def add_image(conn: sqlite3.Connection, image_path: Path, metadata: dict) -> Non
 
 
 def main() -> None:
-    if len(sys.argv) != 2:
-        print("Usage: python tools/import_local_images.py <image-directory>")
-        raise SystemExit(2)
+    parser = argparse.ArgumentParser(
+        description="Import local image files and optional sidecar JSON metadata."
+    )
+    parser.add_argument(
+        "image_directory",
+        type=Path,
+        help="directory containing image files to import",
+    )
+    args = parser.parse_args()
 
-    source = Path(sys.argv[1]).resolve()
+    source = args.image_directory.resolve()
     if not source.exists():
         print(f"Directory not found: {source}")
         raise SystemExit(1)
