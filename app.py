@@ -761,7 +761,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
         with connect_db() as conn:
-            row = conn.execute("SELECT file_path FROM images WHERE id = ?", (int(image_id),)).fetchone()
+            row = conn.execute("SELECT file_path, thumb_path FROM images WHERE id = ?", (int(image_id),)).fetchone()
         if row is None:
             self.send_error(HTTPStatus.NOT_FOUND)
             return
