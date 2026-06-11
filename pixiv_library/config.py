@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from db_config import get_db_path, get_image_dir, get_library_dir, get_thumb_dir
+from db_config import get_db_path, get_image_dir, get_library_dir, get_storage_layout, get_thumb_dir
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -10,6 +10,7 @@ LIBRARY_DIR = get_library_dir()
 IMAGE_DIR = get_image_dir()
 THUMB_DIR = get_thumb_dir()
 DB_PATH = get_db_path()
+STORAGE_LAYOUT = get_storage_layout()
 
 
 def path_to_storage(path: Path) -> str:

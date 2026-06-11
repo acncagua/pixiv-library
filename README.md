@@ -152,7 +152,9 @@ python tools/import_local_images.py library/images
 ```json
 {
   "db_path": "D:/PixivViewerData/pixiv_viewer.db",
-  "image_dir": "D:/PixivViewerData/images"
+  "image_dir": "D:/PixivViewerData/images",
+  "thumb_dir": "D:/PixivViewerData/thumbs",
+  "storage_layout": "flat"
 }
 ```
 
@@ -163,12 +165,24 @@ python tools/import_local_images.py library/images
 ```powershell
 $env:PIXIV_VIEWER_DB_PATH="D:\PixivViewerData\pixiv_viewer.db"
 $env:PIXIV_VIEWER_IMAGE_DIR="D:\PixivViewerData\images"
+$env:PIXIV_VIEWER_THUMB_DIR="D:\PixivViewerData\thumbs"
 .\start_viewer.bat
 ```
 
 環境変数は `local_config.json` より優先されます。
 
 一覧表示用のサムネイルは、未設定の場合 `library/thumbs/` に自動生成されます。必要に応じて `thumb_dir` または `PIXIV_VIEWER_THUMB_DIR` で変更できます。サムネイルが存在しない場合は、一覧表示時の初回アクセスで元画像から作成されます。
+
+保存レイアウトは `storage_layout` または `PIXIV_VIEWER_STORAGE_LAYOUT` で変更できます。既定値は既存環境との互換性を優先して `flat` です。`by_user` を指定すると、Pixiv由来の画像とJSONは `library/images/users/{user_id}/`、サムネイルは `library/thumbs/users/{user_id}/` に保存されます。ローカルインポート画像は `library/images/local/` に保存されます。
+
+既存ファイルを `by_user` へ移行する場合は、必ず先にdry-runで確認してください。
+
+```powershell
+python tools/migrate_storage_layout.py --to by_user --dry-run
+python tools/migrate_storage_layout.py --to by_user --apply
+```
+
+`--apply` 実行時はDBバックアップと移行manifest JSONが作成されます。通常起動時に既存ファイルが自動移動されることはありません。
 
 サムネイルをまとめて再生成する場合:
 

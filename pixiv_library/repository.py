@@ -7,6 +7,7 @@ from db import connect_db, init_db, save_user_master, upsert_image
 
 from .config import path_to_storage, resolve_storage_path
 from .models import PixivWork
+from .storage import build_sidecar_path, build_thumb_path
 
 
 def initialize(conn: sqlite3.Connection | None = None) -> None:
@@ -36,10 +37,14 @@ def upsert_work_image(
     work: PixivWork,
     file_path: Path,
     page_index: int,
+    sidecar_path: Path | None = None,
+    thumb_path: Path | None = None,
     owner_type: str = "self",
     source_user_id: str | None = None,
 ) -> int:
     save_user_master(conn, work.user_id, work.user_name)
+    sidecar_path = sidecar_path or build_sidecar_path(file_path)
+    thumb_path = thumb_path or build_thumb_path(file_path)
     return upsert_image(
         conn,
         pixiv_id=work.pixiv_id,
@@ -47,6 +52,8 @@ def upsert_work_image(
         user_name=work.user_name,
         title=work.title,
         file_path=path_to_storage(file_path),
+        sidecar_path=path_to_storage(sidecar_path),
+        thumb_path=path_to_storage(thumb_path),
         page_index=page_index,
         source_url=work.source_url,
         posted_at=work.posted_at,

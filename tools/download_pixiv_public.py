@@ -12,9 +12,9 @@ sys.path.insert(0, str(ROOT))
 
 from db import connect_db, init_db, save_user_master
 from pixiv_library.client import PixivClient
-from pixiv_library.config import IMAGE_DIR
 from pixiv_library.downloader import download_work_asset, work_from_illust
 from pixiv_library.repository import is_work_downloaded, upsert_work_image
+from pixiv_library.storage import build_image_path, build_sidecar_path
 
 
 DEFAULT_DOWNLOAD_INTERVAL = 0.8
@@ -139,7 +139,7 @@ def main() -> None:
                 work_failed = False
 
                 for image in work.images:
-                    if not (IMAGE_DIR / image.file_name).exists():
+                    if not build_image_path(work, image).exists():
                         print(f"Downloading {image.file_name}")
                     try:
                         target, image, existed_before = download_work_asset(
@@ -171,7 +171,7 @@ def main() -> None:
                     if existed_before:
                         refreshed_existing += 1
                         skipped_existing += 1
-                        print(f"Updated metadata {target.with_suffix(target.suffix + '.json').name}")
+                        print(f"Updated metadata {build_sidecar_path(target).name}")
                     total += 1
                     if not existed_before:
                         time.sleep(DEFAULT_DOWNLOAD_INTERVAL)

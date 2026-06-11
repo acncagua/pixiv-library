@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT))
 
 from db import connect_db, extract_page_index, init_db, save_user_master, upsert_image
 from pixiv_library.config import IMAGE_DIR, path_to_storage
+from pixiv_library.storage import build_local_image_path, build_local_thumb_path, build_sidecar_path
 
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
@@ -30,12 +31,12 @@ def metadata_for(image_path: Path) -> dict:
 
 
 def unique_target_path(source: Path) -> Path:
-    target = IMAGE_DIR / source.name
+    target = build_local_image_path(source)
     if not target.exists() or source.resolve() == target.resolve():
         return target
     index = 1
     while True:
-        candidate = IMAGE_DIR / f"{source.stem}_{index}{source.suffix}"
+        candidate = target.parent / f"{target.stem}_{index}{target.suffix}"
         if not candidate.exists():
             return candidate
         index += 1
@@ -48,17 +49,23 @@ def copy_sidecar(source_image: Path, target_image: Path) -> None:
     target_sidecar = target_image.with_suffix(target_image.suffix + ".json")
     if source_sidecar.resolve() == target_sidecar.resolve():
         return
+    if target_sidecar.exists():
+        return
+    target_sidecar.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source_sidecar, target_sidecar)
 
 
 def add_image(conn: sqlite3.Connection, image_path: Path, metadata: dict) -> None:
     IMAGE_DIR.mkdir(parents=True, exist_ok=True)
     target = unique_target_path(image_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
     if image_path.resolve() != target.resolve():
         shutil.copy2(image_path, target)
         copy_sidecar(image_path, target)
 
     stored_path = path_to_storage(target)
+    sidecar_path = build_sidecar_path(target)
+    thumb_path = build_local_thumb_path(target)
     title = metadata.get("title") or image_path.stem
     tags = [tag.strip() for tag in metadata.get("tags", []) if str(tag).strip()]
     posted_at = metadata.get("posted_at") or metadata.get("create_date")
@@ -76,6 +83,8 @@ def add_image(conn: sqlite3.Connection, image_path: Path, metadata: dict) -> Non
         user_name=user_name,
         title=title,
         file_path=stored_path,
+        sidecar_path=path_to_storage(sidecar_path) if sidecar_path.exists() else None,
+        thumb_path=path_to_storage(thumb_path),
         page_index=page_index,
         source_url=metadata.get("source_url"),
         posted_at=posted_at,

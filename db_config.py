@@ -44,3 +44,13 @@ def get_image_dir() -> Path:
 
 def get_thumb_dir() -> Path:
     return _configured_path("PIXIV_VIEWER_THUMB_DIR", "thumb_dir", get_library_dir() / "thumbs")
+
+
+def get_storage_layout() -> str:
+    value = os.environ.get("PIXIV_VIEWER_STORAGE_LAYOUT")
+    if not value:
+        value = str(_load_local_config().get("storage_layout") or "").strip()
+    value = (value or "flat").lower()
+    if value not in {"flat", "by_user"}:
+        return "flat"
+    return value

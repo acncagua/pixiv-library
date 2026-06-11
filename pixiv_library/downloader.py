@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .config import IMAGE_DIR, ROOT
 from .models import PixivWork, WorkImage
+from .storage import build_image_path, build_sidecar_path
 
 
 def work_from_illust(illust: object, *, user_id: str, user_name: str) -> PixivWork:
@@ -41,7 +41,7 @@ def save_work_sidecar(
     owner_type: str = "self",
     source_user_id: str | None = None,
 ) -> None:
-    image_path.with_suffix(image_path.suffix + ".json").write_text(
+    build_sidecar_path(image_path).write_text(
         json.dumps(
             {
                 "pixiv_id": work.pixiv_id,
@@ -71,11 +71,11 @@ def download_work_asset(
     owner_type: str = "self",
     source_user_id: str | None = None,
 ) -> tuple[Path, WorkImage, bool]:
-    IMAGE_DIR.mkdir(parents=True, exist_ok=True)
-    target = IMAGE_DIR / image.file_name
+    target = build_image_path(work, image)
+    target.parent.mkdir(parents=True, exist_ok=True)
     existed_before = target.exists()
     if not existed_before:
-        client.download(image.url, path=str(IMAGE_DIR), name=image.file_name)
+        client.download(image.url, path=str(target.parent), name=target.name)
     save_work_sidecar(
         work,
         target,

@@ -17,7 +17,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from db import DB_PATH, connect_db, init_db
-from pixiv_library.config import IMAGE_DIR, LIBRARY_DIR, THUMB_DIR, resolve_storage_path
+from pixiv_library.config import IMAGE_DIR, LIBRARY_DIR, THUMB_DIR, path_to_storage, resolve_storage_path
 from pixiv_library.thumbnail import ensure_thumbnail
 
 
@@ -746,7 +746,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
         with connect_db() as conn:
-            row = conn.execute("SELECT file_path FROM images WHERE id = ?", (int(image_id),)).fetchone()
+            row = conn.execute("SELECT file_path, thumb_path FROM images WHERE id = ?", (int(image_id),)).fetchone()
         if row is None:
             self.send_error(HTTPStatus.NOT_FOUND)
             return
@@ -774,6 +774,12 @@ class Handler(BaseHTTPRequestHandler):
         except RuntimeError as exc:
             self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
             return
+        if not row[1] or resolve_storage_path(row[1]) != target.resolve():
+            with connect_db() as conn:
+                conn.execute(
+                    "UPDATE images SET thumb_path = ? WHERE id = ?",
+                    (path_to_storage(target), int(image_id)),
+                )
         self.send_file(target)
 
     def send_exception(self, exc: Exception) -> None:

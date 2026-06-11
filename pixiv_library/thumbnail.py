@@ -2,17 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .config import THUMB_DIR
+from .storage import build_thumb_path
 
 
 THUMB_MAX_SIZE = (360, 360)
 
 
 def thumbnail_path(image_id: int, source_path: Path) -> Path:
-    suffix = source_path.suffix.lower()
-    if suffix not in {".jpg", ".jpeg", ".png", ".webp"}:
-        suffix = ".jpg"
-    return THUMB_DIR / f"{image_id}{suffix}"
+    return build_thumb_path(source_path, image_id=image_id)
 
 
 def generate_thumbnail(source_path: Path, target_path: Path) -> Path:
@@ -21,7 +18,7 @@ def generate_thumbnail(source_path: Path, target_path: Path) -> Path:
     except ImportError as exc:
         raise RuntimeError("Pillow is required to generate thumbnails. Run setup.bat again.") from exc
 
-    THUMB_DIR.mkdir(parents=True, exist_ok=True)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
     with Image.open(source_path) as image:
         image = ImageOps.exif_transpose(image)
         image.thumbnail(THUMB_MAX_SIZE)
@@ -45,4 +42,3 @@ def rebuild_thumbnails(images: list[tuple[int, Path]]) -> int:
             ensure_thumbnail(image_id, source_path)
             count += 1
     return count
-

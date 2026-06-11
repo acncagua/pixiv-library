@@ -1,4 +1,6 @@
 {
   "db_path": "pixiv_viewer.db",
-  "image_dir": "library/images"
+  "image_dir": "library/images",
+  "thumb_dir": "library/thumbs",
+  "storage_layout": "flat"
 }

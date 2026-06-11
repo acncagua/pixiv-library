@@ -34,6 +34,8 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
             user_name TEXT,
             title TEXT NOT NULL,
             file_path TEXT NOT NULL UNIQUE,
+            sidecar_path TEXT,
+            thumb_path TEXT,
             page_index INTEGER DEFAULT 0,
             source_url TEXT,
             posted_at TEXT,
@@ -86,6 +88,10 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
         conn.execute("ALTER TABLE images ADD COLUMN owner_type TEXT DEFAULT 'self'")
     if "source_user_id" not in columns:
         conn.execute("ALTER TABLE images ADD COLUMN source_user_id TEXT")
+    if "sidecar_path" not in columns:
+        conn.execute("ALTER TABLE images ADD COLUMN sidecar_path TEXT")
+    if "thumb_path" not in columns:
+        conn.execute("ALTER TABLE images ADD COLUMN thumb_path TEXT")
     conn.execute("UPDATE images SET owner_type = 'self' WHERE owner_type IS NULL OR owner_type = ''")
     backfill_page_index(conn)
 
@@ -166,6 +172,8 @@ def upsert_image(
     posted_at: str | None,
     restrict_level: int,
     tags: list[str],
+    sidecar_path: str | None = None,
+    thumb_path: str | None = None,
     owner_type: str = "self",
     source_user_id: str | None = None,
 ) -> int:
@@ -173,15 +181,17 @@ def upsert_image(
     cursor = conn.execute(
         """
         INSERT INTO images (
-            pixiv_id, user_id, user_name, title, file_path, page_index, source_url,
+            pixiv_id, user_id, user_name, title, file_path, sidecar_path, thumb_path, page_index, source_url,
             posted_at, restrict_level, owner_type, source_user_id
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(file_path) DO UPDATE SET
             pixiv_id = excluded.pixiv_id,
             user_id = excluded.user_id,
             user_name = excluded.user_name,
             title = excluded.title,
+            sidecar_path = excluded.sidecar_path,
+            thumb_path = COALESCE(excluded.thumb_path, images.thumb_path),
             page_index = excluded.page_index,
             source_url = excluded.source_url,
             posted_at = excluded.posted_at,
@@ -196,6 +206,8 @@ def upsert_image(
             user_name,
             title,
             file_path,
+            sidecar_path,
+            thumb_path,
             page_index,
             source_url,
             posted_at,
